@@ -1,7 +1,7 @@
 #!/bin/sh
 
 localPath=`pwd`
-targetFileDownloadPath=$localPath
+targetFileDownloadPath="/mnt/devdisk/update/upgrade"
 
 #----- shell path -----
 
@@ -11,16 +11,18 @@ wget="wget"
 wput="wput"
 # md5sum path
 md5sum="md5sum"
+# upgrade
+upgrade="upgrade"
 
 #----- ftp download/upload -----
 
 # ftp ip & port
-ftpIp="**********"
-ftpPort="****"
+ftpIp="*"
+ftpPort="*"
 # ftp user
-ftpUser="***"
+ftpUser="*"
 # ftp passwd
-ftpPwd="******"
+ftpPwd="*"
 
 # ftp root path
 ftpPath="m20-debug"
@@ -34,9 +36,7 @@ ftpRes=$ftpPath"/res"
 # example: download "m20-debug/update.txt" $localPath"/update.txt"
 download()
 {
-    cmd="$wget --ftp-user=$ftpUser --ftp-password=$ftpPwd ftp://$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 3 -q"
-    # echo $cmd
-    $cmd
+    $wget --ftp-user=$ftpUser --ftp-password=$ftpPwd ftp://$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 3 -q
 }
 
 # upload $srcPath $distPath
@@ -44,9 +44,7 @@ download()
 # example: upload $localPath"/order.txt" "m20-debug/log/123.log"
 upload()
 {
-    cmd="$wput -B $1 ftp://$ftpUser:$ftpPwd@$ftpIp:$ftpPort/$2 -q"
-    # echo $cmd
-    $cmd
+    $wput -B $1 ftp://$ftpUser:$ftpPwd@$ftpIp:$ftpPort/$2 -q
 }
 
 #----- update.txt deal with -----
@@ -91,7 +89,7 @@ echo $order > $localOrder
 # return: 0/invaild
 #         1/refresh local order, do nothing
 #         2/hit this device, download targetFile and upgrade ..
-upgrade()
+check_update()
 {
     # echo "< ftpUpgrade > [$*]"
     # order compare
@@ -129,9 +127,9 @@ upgrade()
     fi
 }
 
-# upgrade action
-# example: upgrade_action
-upgrade_action()
+# update
+# example: update
+do_update()
 {
     if [ $targetHit -gt 0 ]; then
 
@@ -168,7 +166,15 @@ upgrade_action()
                         # result: pkg
                         logFileName=$logFileName"pkg.log" && echo "[$localTime]" > $localPath"/$logFileName"
                         # upgrade
-                        echo "< ftpUpgrade > depackage now ..."
+                        echo "< ftpUpgrade > upgrade now ..."
+                        $upgrade -c -d Qbox10 -vf /usr/local/qbox10/config/system.conf -nf /usr/local/qbox10/config/system.conf >> $localPath"/$logFileName"
+                        if [ $? -eq 1 ]; then
+                            # upload result
+                            upload "$localPath/$logFileName" "$ftpLog/$logFileName"
+                            echo "< ftpUpgrade > upload: $logFileName done"
+                            # reboot and upgrade
+                            reboot
+                        fi
                     else
                         # result-err: type
                         logFileName=$logFileName"err-type.log" && echo "[$localTime]" > $localPath"/$logFileName"
@@ -189,6 +195,8 @@ upgrade_action()
             logFileName=$logFileName"ignore.log" && echo "[$localTime]" > $localPath"/$logFileName"
             echo "< ftpUpgrade > ignore"
         fi
+        # clear targetFile
+        rm $targetFile -rf
         # upload result
         if [ -e $logFileName ]; then
             upload "$localPath/$logFileName" "$ftpLog/$logFileName"
@@ -210,10 +218,10 @@ while : ; do
     download "$ftpPath/update.txt" $localUpdate
 
     # check update.txt
-    upgrade `sed -n '$p' $localUpdate`
+    check_update `sed -n '$p' $localUpdate`
 
-    # upgrade
-    upgrade_action
+    # do update
+    do_update
 
     # test
     # download "m20-debug/update.txt" $localPath"/update.txt"
