@@ -27,19 +27,19 @@ ftpUser="*"
 ftpLog="log"
 
 # [ ftp server folder structure ]
-# root path -------------- read only
-# |─update.txt ----------- read only
-# |─cmd_file ------------- read only
-# |─pkg_file ------------- read only
-# |─... ------------------ read only
-# |─.. ------------------- read only
-# |─. -------------------- read only
-# |─log ------------------ read/append
-# │  |─xxxx1.log --------- read/append
-# │  |─xxxx2.log --------- read/append
-# │  |─... --------------- read/append
-# │  |─.. ---------------- read/append
-# │  |─. ----------------- read/append
+# root path ............... read only
+# |-update.txt ............ read only
+# |-cmd_file .............. read only
+# |-pkg_file .............. read only
+# |-... ................... read only
+# |-.. .................... read only
+# |-. ..................... read only
+# |-log ................... read/append
+# |  |-xxxx1.log .......... read/append
+# |  |-xxxx2.log .......... read/append
+# |  |-... ................ read/append
+# |  |-.. ................. read/append
+# |  |-. .................. read/append
 
 # download $srcPath $distPath
 # default remote folder /m20
