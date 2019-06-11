@@ -23,32 +23,46 @@ ftpIp="*"
 ftpPort="*"
 # ftp user
 ftpUser="*"
-# ftp passwd
-ftpPwd="*"
-
-# ftp root path
-ftpPath="m20-debug"
 # ftp log path
-ftpLog=$ftpPath"/log"
-# ftp res path
-ftpRes=$ftpPath"/res"
+ftpLog="log"
+
+# [ ftp server folder structure ]
+# root path -------------- read only
+# ├─update.txt ----------- read only
+# ├─cmd_file ------------- read only
+# ├─pkg_file ------------- read only
+# ├─... ------------------ read only
+# ├─.. ------------------- read only
+# ├─. -------------------- read only
+# ├─log ------------------ read/append
+# │  ├─xxxx1.log --------- read/append
+# │  ├─xxxx2.log --------- read/append
+# │  ├─... --------------- read/append
+# │  ├─.. ---------------- read/append
+# │  ├─. ----------------- read/append
 
 # download $srcPath $distPath
 # default remote folder /m20
-# example: download "m20-debug/update.txt" $localPath"/update.txt"
+# example: download "update.txt" $localPath"/update.txt"
 download()
 {
     # -t [retry] -T [timeout] -q [quit]
-    $wget --ftp-user=$ftpUser --ftp-password=$ftpPwd ftp://$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 10 -q
+    $wget --ftp-user=$ftpUser ftp://$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 10 -q
+
+    # no port
+    # $wget --ftp-user=$ftpUser ftp://$ftpIp/$1 -O $2 -t 3 -T 10 -q
 }
 
 # upload $srcPath $distPath
 # default remote folder /m20/log
-# example: upload $localPath"/order.txt" "m20-debug/log/123.log"
+# example: upload $localPath"/order.txt" "log/123.log"
 upload()
 {
     # -q [quit]
-    $wput -B $1 ftp://$ftpUser:$ftpPwd@$ftpIp:$ftpPort/$2 -q
+    $wput -B $1 ftp://$ftpUser@$ftpIp:$ftpPort/$2 -q
+
+    # no port
+    # $wput -B $1 ftp://$ftpUser@$ftpIp/$2 -q
 }
 
 #----- deal with update.txt -----
@@ -154,7 +168,7 @@ do_update()
             if [ -e $targetFileDownloadPath ]; then
                 # download target
                 echo "< ftpUpgrade > download target [$targetType $targetFile]"
-                download "$ftpRes/$targetFile" $targetFileDownloadPath"/$targetFile"
+                download "$targetFile" $targetFileDownloadPath"/$targetFile"
                 targetFile=$targetFileDownloadPath"/$targetFile"
             fi
 
@@ -229,17 +243,13 @@ while : ; do
     sleep $delay1
 
     # download update.txt
-    download "$ftpPath/update.txt" $localUpdate
+    download "update.txt" $localUpdate
 
     # check update.txt
     check_update `sed -n '$p' $localUpdate`
 
     # do update
     do_update
-
-    # test
-    # download "m20-debug/update.txt" $localPath"/update.txt"
-    # upload $localPath"/order.conf" "m20-debug/log/123.log"
 
     sleep $delay2
 done
