@@ -223,10 +223,8 @@ do_update()
         # clear targetFile
         rm $targetFile -rf
         # upload result
-        if [ -e $logFileName ]; then
-            upload "$localPath/$logFileName" "$ftpLog/$logFileName"
-            echo "< ftpUpgrade > upload: $logFileName done" && rm "$localPath/$logFileName"
-        fi
+        upload "$localPath/$logFileName" "$ftpLog/$logFileName"
+        echo "< ftpUpgrade > upload: $logFileName done" && rm "$localPath/$logFileName"
     fi
     # clear targetHit
     targetHit=0
