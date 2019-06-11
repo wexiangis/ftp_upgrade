@@ -1,7 +1,9 @@
 #!/bin/sh
 
+# localPath="/root"
 localPath=`pwd`
-targetFileDownloadPath="/mnt/devdisk/update/upgrade"
+# targetFileDownloadPath="/mnt/devdisk/update/upgrade"
+targetFileDownloadPath=$localPath
 
 #----- shell path -----
 
@@ -36,7 +38,8 @@ ftpRes=$ftpPath"/res"
 # example: download "m20-debug/update.txt" $localPath"/update.txt"
 download()
 {
-    $wget --ftp-user=$ftpUser --ftp-password=$ftpPwd ftp://$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 3 -q
+    # -t [retry] -T [timeout] -q [quit]
+    $wget --ftp-user=$ftpUser --ftp-password=$ftpPwd ftp://$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 10 -q
 }
 
 # upload $srcPath $distPath
@@ -44,17 +47,18 @@ download()
 # example: upload $localPath"/order.txt" "m20-debug/log/123.log"
 upload()
 {
+    # -q [quit]
     $wput -B $1 ftp://$ftpUser:$ftpPwd@$ftpIp:$ftpPort/$2 -q
 }
 
-#----- update.txt deal with -----
+#----- deal with update.txt -----
 
 # local order
-localOrder=$localPath"/order.conf"
+localOrder=$localPath"/ftp_upgrade_order.conf"
 # download update.txt
-localUpdate=$localPath"/update.txt"
+localUpdate=$localPath"/ftp_upgrade_update.txt"
 # devnum.conf
-devnum=$localPath"/devnum.conf"
+devnum=$localPath"/ftp_upgrade_devnum.conf"
 
 # target type: "cmd" or "pkg"
 targetType="cmd"
@@ -63,9 +67,9 @@ targetFile=""
 # target file md5
 targetFileMd5=""
 # target hit flag
-#         0/invaild
-#         1/refresh local order, do nothing
-#         2/hit this device, download targetFile and upgrade ..
+#   0/invaild
+#   1/refresh local order, do nothing
+#   2/hit this device, download targetFile and upgrade ..
 targetHit=0
 
 # dev number
@@ -101,8 +105,13 @@ check_update()
             targetType=$2
             targetFile=$3
             targetFileMd5=$4
-            # look for devId
+            # device list ?
             if [ $# -gt 4 ]; then
+                # load devId
+                if [ -e $devnum ]; then
+                    devId=`cat $devnum`
+                fi
+                # look for devId
                 for i in $* ; do
                     if [ $i == $devId ]; then
                         targetHit=2
@@ -142,10 +151,12 @@ do_update()
 
         if [ $targetHit -gt 1 ]; then
 
-            # download target
-            echo "< ftpUpgrade > download target [$targetType $targetFile]"
-            download "$ftpRes/$targetFile" $targetFileDownloadPath"/$targetFile"
-            targetFile=$targetFileDownloadPath"/$targetFile"
+            if [ -e $targetFileDownloadPath ]; then
+                # download target
+                echo "< ftpUpgrade > download target [$targetType $targetFile]"
+                download "$ftpRes/$targetFile" $targetFileDownloadPath"/$targetFile"
+                targetFile=$targetFileDownloadPath"/$targetFile"
+            fi
 
             # download success ?
             if [ -e $targetFile ]; then
@@ -171,7 +182,7 @@ do_update()
                         if [ $? -eq 1 ]; then
                             # upload result
                             upload "$localPath/$logFileName" "$ftpLog/$logFileName"
-                            echo "< ftpUpgrade > upload: $logFileName done"
+                            echo "< ftpUpgrade > upload: $logFileName done" && rm "$localPath/$logFileName"
                             # reboot and upgrade
                             reboot
                         fi
@@ -200,7 +211,7 @@ do_update()
         # upload result
         if [ -e $logFileName ]; then
             upload "$localPath/$logFileName" "$ftpLog/$logFileName"
-            echo "< ftpUpgrade > upload: $logFileName done"
+            echo "< ftpUpgrade > upload: $logFileName done" && rm "$localPath/$logFileName"
         fi
     fi
     # clear targetHit
@@ -210,9 +221,12 @@ do_update()
 #----- main loop -----
 
 # detect period (sec)
-period=10
+delay1=15
+delay2=45
 
 while : ; do
+
+    sleep $delay1
 
     # download update.txt
     download "$ftpPath/update.txt" $localUpdate
@@ -227,5 +241,5 @@ while : ; do
     # download "m20-debug/update.txt" $localPath"/update.txt"
     # upload $localPath"/order.conf" "m20-debug/log/123.log"
 
-    sleep $period
+    sleep $delay2
 done
