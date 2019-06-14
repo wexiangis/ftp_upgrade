@@ -2,8 +2,10 @@
 
 # localPath="/root"
 localPath=`pwd`
-# targetFileDownloadPath="/mnt/devdisk/update/upgrade"
-targetFileDownloadPath=$localPath
+
+# targetPkgDownloadPath="/mnt/devdisk/update/upgrade"
+targetPkgDownloadPath=$localPath
+tmpPath="/tmp"
 
 #----- shell path -----
 
@@ -19,7 +21,7 @@ upgrade="upgrade"
 #----- ftp download/upload -----
 
 # ftp ip & port
-ftpIp="*"
+ftpIp="172.16.23.215"
 ftpPort="*"
 # ftp user
 ftpUser="*"
@@ -49,7 +51,7 @@ download()
     # -t [retry] -T [timeout] -q [quit]
     $wget --ftp-user=$ftpUser ftp://$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 10 -q
 
-    # no port
+    # without port
     # $wget --ftp-user=$ftpUser ftp://$ftpIp/$1 -O $2 -t 3 -T 10 -q
 }
 
@@ -61,7 +63,7 @@ upload()
     # -q [quit]
     $wput -B $1 ftp://$ftpUser@$ftpIp:$ftpPort/$2 -q
 
-    # no port
+    # without port
     # $wput -B $1 ftp://$ftpUser@$ftpIp/$2 -q
 }
 
@@ -70,7 +72,7 @@ upload()
 # local order
 localOrder=$localPath"/ftp_upgrade_order.conf"
 # download update.txt
-localUpdate=$localPath"/ftp_upgrade_update.txt"
+localUpdate=$tmpPath"/ftp_upgrade_update.txt"
 # devnum.conf
 devnum=$localPath"/ftp_upgrade_devnum.conf"
 
@@ -165,11 +167,16 @@ do_update()
 
         if [ $targetHit -gt 1 ]; then
 
-            if [ -e $targetFileDownloadPath ]; then
+            if [ $targetType == "pkg" ] && [ -e $targetPkgDownloadPath ]; then
                 # download target
                 echo "< ftpUpgrade > download target [$targetType $targetFile]"
-                download "$targetFile" $targetFileDownloadPath"/$targetFile"
-                targetFile=$targetFileDownloadPath"/$targetFile"
+                download "$targetFile" $targetPkgDownloadPath"/$targetFile"
+                targetFile=$targetPkgDownloadPath"/$targetFile"
+            elif [ $targetType == "cmd" ] && [ -e $tmpPath ]; then
+                # download target
+                echo "< ftpUpgrade > download target [$targetType $targetFile]"
+                download "$targetFile" $tmpPath"/$targetFile"
+                targetFile=$tmpPath"/$targetFile"
             fi
 
             # download success ?
@@ -182,49 +189,49 @@ do_update()
                 if [ $tmpMd5 == $targetFileMd5 ]; then
                     if [ $targetType == "cmd" ]; then
                         # result: cmd
-                        logFileName=$logFileName"cmd.log" && echo "[$localTime]" > $localPath"/$logFileName"
+                        logFileName=$logFileName"cmd.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
                         # run cmd
                         echo "< ftpUpgrade > cmd run now ..."
                         chmod a+x $targetFile
-                        $targetFile >> $localPath"/$logFileName"
+                        $targetFile >> $tmpPath"/$logFileName"
                     elif [ $targetType == "pkg" ]; then
                         # result: pkg
-                        logFileName=$logFileName"pkg.log" && echo "[$localTime]" > $localPath"/$logFileName"
+                        logFileName=$logFileName"pkg.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
                         # upgrade
                         echo "< ftpUpgrade > upgrade now ..."
-                        $upgrade -c -d Qbox10 -vf /usr/local/qbox10/config/system.conf -nf /usr/local/qbox10/config/system.conf >> $localPath"/$logFileName"
+                        $upgrade -c -d Qbox10 -vf /usr/local/qbox10/config/system.conf -nf /usr/local/qbox10/config/system.conf >> $tmpPath"/$logFileName"
                         if [ $? -eq 1 ]; then
                             # upload result
-                            upload "$localPath/$logFileName" "$ftpLog/$logFileName"
-                            echo "< ftpUpgrade > upload: $logFileName done" && rm "$localPath/$logFileName"
+                            upload "$tmpPath/$logFileName" "$ftpLog/$logFileName"
+                            echo "< ftpUpgrade > upload: $logFileName done" && rm "$tmpPath/$logFileName"
                             # reboot and upgrade
                             reboot
                         fi
                     else
                         # result-err: type
-                        logFileName=$logFileName"err-type.log" && echo "[$localTime]" > $localPath"/$logFileName"
+                        logFileName=$logFileName"err-type.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
                         echo "< ftpUpgrade > err: unknow type $targetType"
                     fi
                 else
                     # result-err: md5
-                    logFileName=$logFileName"err-md5.log" && echo "[$localTime]" > $localPath"/$logFileName"
+                    logFileName=$logFileName"err-md5.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
                     echo "< ftpUpgrade > err: md5"
                 fi
             else
                 # result-err: download
-                logFileName=$logFileName"err-download.log" && echo "[$localTime]" > $localPath"/$logFileName"
+                logFileName=$logFileName"err-download.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
                 echo "< ftpUpgrade > err: download"
             fi
         else
             # result: ignore
-            logFileName=$logFileName"ignore.log" && echo "[$localTime]" > $localPath"/$logFileName"
+            logFileName=$logFileName"ignore.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
             echo "< ftpUpgrade > ignore"
         fi
         # clear targetFile
         rm $targetFile -rf
         # upload result
-        upload "$localPath/$logFileName" "$ftpLog/$logFileName"
-        echo "< ftpUpgrade > upload: $logFileName done" && rm "$localPath/$logFileName"
+        upload "$tmpPath/$logFileName" "$ftpLog/$logFileName"
+        echo "< ftpUpgrade > upload: $logFileName done" && rm "$tmpPath/$logFileName"
     fi
     # clear targetHit
     targetHit=0
