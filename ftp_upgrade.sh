@@ -49,10 +49,10 @@ ftpLog="log"
 download()
 {
     # -t [retry] -T [timeout] -q [quit]
-    $wget --ftp-user=$ftpUser ftp://$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 10 -q
+    $wget ftp://$ftpUser@$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 10 -q
 
     # without port
-    # $wget --ftp-user=$ftpUser ftp://$ftpIp/$1 -O $2 -t 3 -T 10 -q
+    # $wget ftp://$ftpUser@$ftpIp/$1 -O $2 -t 3 -T 10 -q
 }
 
 # upload $srcPath $distPath
