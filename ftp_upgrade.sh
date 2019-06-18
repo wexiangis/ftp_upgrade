@@ -205,7 +205,7 @@ do_update()
                             upload "$tmpPath/$logFileName" "$ftpLog/$logFileName"
                             echo "< ftpUpgrade > upload: $logFileName done" && rm "$tmpPath/$logFileName"
                             # reboot and upgrade
-                            reboot
+                            reboot && sleep 30
                         fi
                     else
                         # result-err: type
