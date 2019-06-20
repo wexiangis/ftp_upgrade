@@ -21,7 +21,8 @@ upgrade="upgrade"
 #----- ftp download/upload -----
 
 # ftp ip & port
-ftpIp="172.16.23.215"
+ftpIp="*"
+ftpIpBak="*"
 ftpPort="*"
 # ftp user
 ftpUser="*"
@@ -49,10 +50,17 @@ ftpLog="log"
 download()
 {
     # -t [retry] -T [timeout] -q [quit]
-    $wget ftp://$ftpUser@$ftpIp:$ftpPort/$1 -O $2 -t 3 -T 10 -q
+    $wget -t 2 ftp://$ftpUser@$ftpIp:$ftpPort/$1 -O $2 -o $tmpPath/wget.log
+    # $wget -t 2 ftp://$ftpUser@$ftpIp/$1 -O $2 -o $tmpPath/wget.log
 
-    # without port
-    # $wget ftp://$ftpUser@$ftpIp/$1 -O $2 -t 3 -T 10 -q
+    if cat $tmpPath/wget.log | grep '100%' > /dev/null
+    then
+        rm $tmpPath/wget.log
+    else
+        echo "wget backup ip $ftpIpBak"
+        $wget -t 2 -q ftp://$ftpUser@$ftpIpBak:$ftpPort/$1 -O $2
+        # $wget -t 2 -q ftp://$ftpUser@$ftpIpBak/$1 -O $2
+    fi
 }
 
 # upload $srcPath $distPath
@@ -61,10 +69,17 @@ download()
 upload()
 {
     # -q [quit]
-    $wput -B $1 ftp://$ftpUser@$ftpIp:$ftpPort/$2 -q
+    $wput -t 2 $1 ftp://$ftpUser@$ftpIp:$ftpPort/$2 -o $tmpPath/wput.log
+    # $wput -t 2 5 $1 ftp://$ftpUser@$ftpIp/$2 -o $tmpPath/wput.log
 
-    # without port
-    # $wput -B $1 ftp://$ftpUser@$ftpIp/$2 -q
+    if cat $tmpPath/wput.log | grep 'Transfered' > /dev/null
+    then
+        rm $tmpPath/wput.log
+    else
+        echo "wput backup ip $ftpIpBak"
+        $wput -t 2 -q $1 ftp://$ftpUser@$ftpIpBak:$ftpPort/$2
+        # $wput -t 2 -q $1 ftp://$ftpUser@$ftpIpBak/$2
+    fi
 }
 
 #----- deal with update.txt -----
@@ -121,12 +136,12 @@ check_update()
             targetType=$2
             targetFile=$3
             targetFileMd5=$4
+            # load devId
+            if [ -e $devnum ]; then
+                devId=`cat $devnum`
+            fi
             # device list ?
             if [ $# -gt 4 ]; then
-                # load devId
-                if [ -e $devnum ]; then
-                    devId=`cat $devnum`
-                fi
                 # look for devId
                 for i in $* ; do
                     if [ $i == $devId ]; then
@@ -199,14 +214,10 @@ do_update()
                         logFileName=$logFileName"pkg.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
                         # upgrade
                         echo "< ftpUpgrade > upgrade now ..."
-                        $upgrade -c -d Qbox10 -vf /usr/local/qbox10/config/system.conf -nf /usr/local/qbox10/config/system.conf >> $tmpPath"/$logFileName"
-                        if [ $? -eq 1 ]; then
-                            # upload result
-                            upload "$tmpPath/$logFileName" "$ftpLog/$logFileName"
-                            echo "< ftpUpgrade > upload: $logFileName done" && rm "$tmpPath/$logFileName"
-                            # reboot and upgrade
-                            reboot && sleep 30
-                        fi
+
+                        # ---------- here to upgrade pkg ... ----------
+                        echo "upgrade success !!" >> $tmpPath"/$logFileName"
+
                     else
                         # result-err: type
                         logFileName=$logFileName"err-type.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
