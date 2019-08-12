@@ -1,4 +1,5 @@
-host:=arm-linux-gnueabihf
+#host:=arm-linux-gnueabihf
+host:=
 
 target:wput wget
 	@cp ./wput-0.6.1/wput ./
@@ -19,4 +20,4 @@ wput:
 	cd -
 
 clean:
-	@rm ./wput-0.6.1 ./wget-1.15 -rf
+	@rm ./wput-0.6.1 ./wget-1.15 -rf ./wget ./wput
