@@ -1,0 +1,2 @@
+20210414232000 pkg pkg-demo.bin 099089df0d90fdfbeda896cb681ae5e7
+20210414232000 cmd cmd-demo.sh 9dd03cf2e6d7503bf9cb58140f04dbab

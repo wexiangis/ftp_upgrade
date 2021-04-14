@@ -1,31 +1,14 @@
 #!/bin/sh
 
-# localPath="/root"
-localPath=`pwd`
-
-# targetPkgDownloadPath="/mnt/devdisk/update/upgrade"
-targetPkgDownloadPath=$localPath
-tmpPath="/tmp"
-
-#----- shell path -----
-
-# wget path
-wget="wget"
-# wput path
-wput="wput"
-# md5sum path
-md5sum="md5sum"
-# upgrade
-upgrade="upgrade"
-
-#----- ftp download/upload -----
+#----- ftp config -----
 
 # ftp ip & port
-ftpIp="*"
-ftpIpBak="*"
-ftpPort="*"
-# ftp user
-ftpUser="*"
+ftpUrl="192.168.1.2"
+ftpUrlBakup="www.xxxooo.com"
+ftpPort="9999"
+# ftp user & pwd
+ftpUser="usr"
+ftpPwd="123abc"
 # ftp log path
 ftpLog="log"
 
@@ -44,52 +27,59 @@ ftpLog="log"
 # |  |-.. ................. read/append
 # |  |-. .................. read/append
 
+#----- shell path -----
+
+rootPath="/root"
+tmpPath="/tmp"
+pkgPath="/mnt/update"
+
+# wget path
+wget="wget"
+# wput path
+wput="wput"
+# md5sum path
+md5sum="md5sum"
+
+#----- ftp download/upload -----
+
 # download $srcPath $distPath
-# default remote folder /m20
-# example: download "update.txt" $localPath"/update.txt"
+# example: download "update.txt" $rootPath"/update.txt"
 download()
 {
     # -t [retry] -T [timeout] -q [quit]
-    $wget -t 2 ftp://$ftpUser@$ftpIp:$ftpPort/$1 -O $2 -o $tmpPath/wget.log
-    # $wget -t 2 ftp://$ftpUser@$ftpIp/$1 -O $2 -o $tmpPath/wget.log
-
+    $wget -t 2 -T 10 ftp://$ftpUser:$ftpPwd@$ftpUrl:$ftpPort/$1 -O $2 -o $tmpPath/wget.log
     if cat $tmpPath/wget.log | grep '100%' > /dev/null
     then
         rm $tmpPath/wget.log
     else
-        echo "wget backup ip $ftpIpBak"
-        $wget -t 2 -q ftp://$ftpUser@$ftpIpBak:$ftpPort/$1 -O $2
-        # $wget -t 2 -q ftp://$ftpUser@$ftpIpBak/$1 -O $2
+        echo "wget backup ip $ftpUrlBakup"
+        $wget -t 2 -T 10 -q ftp://$ftpUser:$ftpPwd@$ftpUrlBakup:$ftpPort/$1 -O $2
     fi
 }
 
 # upload $srcPath $distPath
-# default remote folder /m20/log
-# example: upload $localPath"/order.txt" "log/123.log"
+# example: upload $rootPath"/order.txt" "log/123.log"
 upload()
 {
-    # -q [quit]
-    $wput -t 2 $1 ftp://$ftpUser@$ftpIp:$ftpPort/$2 -o $tmpPath/wput.log
-    # $wput -t 2 5 $1 ftp://$ftpUser@$ftpIp/$2 -o $tmpPath/wput.log
-
+    # -t [retry] -T [timeout] -q [quit]
+    $wput -t 2 -T 10 $1 ftp://$ftpUser:$ftpPwd@$ftpUrl:$ftpPort/$2 -o $tmpPath/wput.log
     if cat $tmpPath/wput.log | grep 'Transfered' > /dev/null
     then
         rm $tmpPath/wput.log
     else
-        echo "wput backup ip $ftpIpBak"
-        $wput -t 2 -q $1 ftp://$ftpUser@$ftpIpBak:$ftpPort/$2
-        # $wput -t 2 -q $1 ftp://$ftpUser@$ftpIpBak/$2
+        echo "wput backup ip $ftpUrlBakup"
+        $wput -t 2 -T 10 -q $1 ftp://$ftpUser:$ftpPwd@$ftpUrlBakup:$ftpPort/$2
     fi
 }
 
 #----- deal with update.txt -----
 
 # local order
-localOrder=$localPath"/ftp_upgrade_order.conf"
+localOrder=$rootPath"/ftp_upgrade_order.conf"
 # download update.txt
 localUpdate=$tmpPath"/ftp_upgrade_update.txt"
 # devnum.conf
-devnum=$localPath"/ftp_upgrade_devnum.conf"
+devnum=$rootPath"/ftp_upgrade_devnum.conf"
 
 # target type: "cmd" or "pkg"
 targetType="cmd"
@@ -104,13 +94,13 @@ targetFileMd5=""
 targetHit=0
 
 # dev number
-devId=14770000
+devId=12345678
 if [ -e $devnum ]; then
     devId=`cat $devnum`
 fi
 
 # history order
-order="20190601083000"
+order="20210326094143"
 if [ -e $localOrder ]; then
     tmp=`cat $localOrder`
     if [ $tmp -gt $order ]; then
@@ -120,7 +110,7 @@ fi
 echo $order > $localOrder
 
 # check update.txt
-# example: upgrade `sed -n '$p' update.txt`
+# example: check_update `sed -n '$p' update.txt`
 # return: 0/invaild
 #         1/refresh local order, do nothing
 #         2/hit this device, download targetFile and upgrade ..
@@ -171,6 +161,7 @@ check_update()
 # example: update
 do_update()
 {
+    # targetHit > 1 ?
     if [ $targetHit -gt 0 ]; then
 
         localTime=`date +%Y%m%d%H%M%S`
@@ -180,13 +171,15 @@ do_update()
         echo "< ftpUpgrade > refresh order.conf [$order]"
         echo $order > $localOrder
 
+        # targetHit == 2 ?
         if [ $targetHit -gt 1 ]; then
 
-            if [ $targetType == "pkg" ] && [ -e $targetPkgDownloadPath ]; then
+            # download file
+            if [ $targetType == "pkg" ] && [ -e $pkgPath ]; then
                 # download target
                 echo "< ftpUpgrade > download target [$targetType $targetFile]"
-                download "$targetFile" $targetPkgDownloadPath"/$targetFile"
-                targetFile=$targetPkgDownloadPath"/$targetFile"
+                download "$targetFile" $pkgPath"/$targetFile"
+                targetFile=$pkgPath"/$targetFile"
             elif [ $targetType == "cmd" ] && [ -e $tmpPath ]; then
                 # download target
                 echo "< ftpUpgrade > download target [$targetType $targetFile]"
@@ -205,19 +198,23 @@ do_update()
                     if [ $targetType == "cmd" ]; then
                         # result: cmd
                         logFileName=$logFileName"cmd.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
-                        # run cmd
-                        echo "< ftpUpgrade > cmd run now ..."
+                        # delete '\r'
+                        dos2unix $targetFile
+                        # enable for shell
                         chmod a+x $targetFile
+                        # run cmd and get log
+                        echo "< ftpUpgrade > cmd run now ..."
                         $targetFile >> $tmpPath"/$logFileName"
                     elif [ $targetType == "pkg" ]; then
                         # result: pkg
                         logFileName=$logFileName"pkg.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
                         # upgrade
                         echo "< ftpUpgrade > upgrade now ..."
-
-                        # ---------- here to upgrade pkg ... ----------
-                        echo "upgrade success !!" >> $tmpPath"/$logFileName"
-
+                        # upload result
+                        upload "$tmpPath/$logFileName" "$ftpLog/$logFileName"
+                        echo "< ftpUpgrade > upload: $logFileName done" && rm "$tmpPath/$logFileName"
+                        # reboot and upgrade
+                        reboot && sleep 30
                     else
                         # result-err: type
                         logFileName=$logFileName"err-type.log" && echo "[$localTime]" > $tmpPath"/$logFileName"
@@ -262,9 +259,10 @@ while : ; do
     download "update.txt" $localUpdate
 
     # check update.txt
+    # set targetHit
     check_update `sed -n '$p' $localUpdate`
 
-    # do update
+    # check targetHit and do update
     do_update
 
     sleep $delay2

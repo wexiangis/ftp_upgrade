@@ -1,9 +1,11 @@
-#host:=arm-linux-gnueabihf
-host:=
+host:=arm-linux-gnueabihf
+# host:=
 
-target:wput wget
+target: wput wget
 	@cp ./wput-0.6.1/wput ./
 	@cp ./wget-1.15/src/wget ./
+	@rm ./wget-1.15 -rf
+	@rm ./wput-0.6.1 -rf
 
 wget:
 	@tar -xzf ./wget-1.15.tar.gz && \
